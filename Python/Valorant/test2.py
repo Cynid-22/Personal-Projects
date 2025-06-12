@@ -1,8 +1,8 @@
 import requests
 import json
+import cred
 
 
-API_KEY = "HDEV-b51471a5-4257-4302-bb76-38b0ecf1c45d"
 name = "cynid"
 tagline = "3301"
 region = "na"
@@ -19,7 +19,7 @@ apiURL += platform + "/"
 apiURL += name + "/" 
 apiURL += tagline 
 # apiURL += 'd9a23e00-8dc0-50d6-9c7e-f757464852c5'
-apiURL += "?api_key=" + API_KEY
+apiURL += "?api_key=" + cred.API_KEY
 playerInfo = requests.get(apiURL).json()
 
 json_object = json.dumps(playerInfo, indent=4)

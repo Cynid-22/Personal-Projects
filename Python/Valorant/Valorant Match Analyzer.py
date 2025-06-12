@@ -1,8 +1,8 @@
 import requests
 import json
+import cred
 
 
-API_KEY = "HDEV-b51471a5-4257-4302-bb76-38b0ecf1c45d"
 name = "cynid"
 tagline = "3301"
 region = "na"
@@ -10,7 +10,7 @@ region = "na"
 
 # Get my match history
 dataURL = "https://api.henrikdev.xyz/valorant/v3/matches"
-apiURL = dataURL + "/" + region + "/" + name + "/" + tagline + "?api_key=" + API_KEY
+apiURL = dataURL + "/" + region + "/" + name + "/" + tagline + "?api_key=" + cred.API_KEY
 playerInfo = requests.get(apiURL).json()
 
 # Create a list of players in the current match
@@ -28,7 +28,7 @@ for i in range(len(playerList)):
     eachPlayerInfo = {}
     dataURL = "https://api.henrikdev.xyz/valorant/v3/matches"
     if (playerList[i][0] != 0):
-        apiURL = dataURL + "/" + region + "/" + playerList[i][0] + "/" + playerList[i][1] + "?api_key=" + API_KEY
+        apiURL = dataURL + "/" + region + "/" + playerList[i][0] + "/" + playerList[i][1] + "?api_key=" + cred.API_KEY
         otherPlayerInfo = requests.get(apiURL).json()
         for j in range(5):
             try:
