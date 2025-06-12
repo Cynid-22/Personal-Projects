@@ -1,6 +1,6 @@
 import requests
 import json
-import cred
+import Python.Valorant.creds as creds
 
 
 name = "cynid"
@@ -19,7 +19,7 @@ apiURL += platform + "/"
 # apiURL += name + "/" 
 # apiURL += tagline 
 apiURL += puuid
-apiURL += "?api_key=" + cred.API_KEY
+apiURL += "?api_key=" + creds.API_KEY
 playerInfo = requests.get(apiURL).json()
 
 json_object = json.dumps(playerInfo, indent=4)
