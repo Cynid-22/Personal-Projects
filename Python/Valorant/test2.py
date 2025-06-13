@@ -7,7 +7,6 @@ name = "cynid"
 tagline = "3301"
 region = "na"
 platform = "pc"
-puuid = 'd9a23e00-8dc0-50d6-9c7e-f757464852c5'
 accountLevel = 49
 
 
@@ -18,7 +17,7 @@ apiURL += region + "/"
 apiURL += platform + "/" 
 apiURL += name + "/" 
 apiURL += tagline 
-# apiURL += 'd9a23e00-8dc0-50d6-9c7e-f757464852c5'
+# apiURL += creds.puuid
 apiURL += "?api_key=" + creds.API_KEY
 playerInfo = requests.get(apiURL).json()
 
