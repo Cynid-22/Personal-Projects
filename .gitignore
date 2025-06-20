@@ -198,3 +198,4 @@ cython_debug/
 .cursorindexingignore
 .vscode/tasks.json
 C++/SHA 256/Sha256.exe
+C++/SHA/Sha256.exe

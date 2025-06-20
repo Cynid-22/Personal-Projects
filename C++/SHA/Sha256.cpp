@@ -3,20 +3,9 @@
 #include <vector>
 #include <sstream>
 #include <bits/stdc++.h>
+#include "sha.h"
 
 using namespace std;
-
-vector<bool> TextToBinaryString(const string& words, size_t& bitLength) {
-    vector<bool> bits;
-    for (char c : words) {
-        bitset<8> b(c);
-        for (int i = 7; i >= 0; --i) {
-            bits.push_back(b[i]);
-        }
-    }
-    bitLength = bits.size();
-    return bits;
-}
 
 void preProcessing(size_t length, vector<bool>& binMessage)
 {
@@ -33,21 +22,6 @@ void preProcessing(size_t length, vector<bool>& binMessage)
     }
 }
 
-uint32_t bitsToUsignedInt32(const vector<bool>& bits, size_t start) {
-    uint32_t value = 0;
-    for (size_t i = 0; i < 32; ++i) {
-        value <<= 1;
-        if (bits[start + i])
-            value |= 1;
-        else
-            value |= 0;
-    }
-    return value;
-}
-
-uint32_t rotateRightByN(uint32_t x, unsigned int n) {
-    return (x >> n) | (x << (32 - n));
-}
 
 vector<bool> processing (vector<bool>& binMessage, uint32_t H[8], uint32_t K[64])
 {
@@ -66,12 +40,12 @@ vector<bool> processing (vector<bool>& binMessage, uint32_t H[8], uint32_t K[64]
         size_t pointer = chunkIter * 512, index;
         for (int i = 0; i < 16; ++i) {
             index = pointer + i * 32;
-            w[i] = bitsToUsignedInt32(binMessage, index);
+            w[i] = bitsToUsignedInt<uint32_t>(binMessage, index);
         }
 
         for (int i = 16; i < 64; ++i) {
-            uint32_t s0 = rotateRightByN(w[i - 15], 7) ^ rotateRightByN(w[i - 15], 18) ^ (w[i - 15] >> 3);
-            uint32_t s1 = rotateRightByN(w[i - 2], 17) ^ rotateRightByN(w[i - 2], 19) ^ (w[i - 2] >> 10);
+            uint32_t s0 = rotateRightByN<uint32_t>(w[i - 15], 7, 32) ^ rotateRightByN<uint32_t>(w[i - 15], 18, 32) ^ (w[i - 15] >> 3);
+            uint32_t s1 = rotateRightByN<uint32_t>(w[i - 2], 17, 32) ^ rotateRightByN<uint32_t>(w[i - 2], 19, 32) ^ (w[i - 2] >> 10);
             w[i] = w[i - 16] + s0 + w[i - 7] + s1;
         }
 
@@ -86,10 +60,10 @@ vector<bool> processing (vector<bool>& binMessage, uint32_t H[8], uint32_t K[64]
         
 
         for (int i = 0; i < 64; ++i) {
-            uint32_t S1 = rotateRightByN(e, 6) ^ rotateRightByN(e, 11) ^ rotateRightByN(e, 25);
+            uint32_t S1 = rotateRightByN<uint32_t>(e, 6, 32) ^ rotateRightByN<uint32_t>(e, 11, 32) ^ rotateRightByN<uint32_t>(e, 25, 32);
             uint32_t ch = (e & f) ^ (~e & g);
             uint32_t temp1 = h + S1 + ch + K[i] + w[i];
-            uint32_t S0 = rotateRightByN(a, 2) ^ rotateRightByN(a, 13) ^ rotateRightByN(a, 22);
+            uint32_t S0 = rotateRightByN<uint32_t>(a, 2, 32) ^ rotateRightByN<uint32_t>(a, 13, 32) ^ rotateRightByN<uint32_t>(a, 22, 32);
             uint32_t maj = (a & b) ^ (a & c) ^ (b & c);
             uint32_t temp2 = S0 + maj;
 
@@ -119,24 +93,6 @@ vector<bool> processing (vector<bool>& binMessage, uint32_t H[8], uint32_t K[64]
     return digest;
 }
 
-string bitsetToHex(const std::bitset<256>& bits)
-{
-    stringstream ss;
-
-    for (int i = 256 - 4; i >= 0; i -= 4) {
-        int value = 0;
-        for (int j = 0; j < 4; ++j) {
-            if (bits[i + j]) {
-                value |= (1 << (3 - j));
-            }
-        }
-        ss << hex << value;
-    }
-
-    string idkWhatHappenedButSomehowItEndedUpReversed = ss.str();
-    reverse(idkWhatHappenedButSomehowItEndedUpReversed.begin(), idkWhatHappenedButSomehowItEndedUpReversed.end());
-    return idkWhatHappenedButSomehowItEndedUpReversed;
-}
 
 void sha256(string strMessage)
 {
@@ -164,7 +120,7 @@ void sha256(string strMessage)
         digest[i] = hash[i];
     }
 
-    cout << bitsetToHex(digest);
+    cout << bitsetToHex<bitset<256>>(digest, 256);
 }
 
 int main()
