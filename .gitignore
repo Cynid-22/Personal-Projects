@@ -199,3 +199,5 @@ cython_debug/
 .vscode/tasks.json
 C++/SHA 256/Sha256.exe
 C++/SHA/Sha256.exe
+Python/Website_scraper/results.txt
+results.txt
