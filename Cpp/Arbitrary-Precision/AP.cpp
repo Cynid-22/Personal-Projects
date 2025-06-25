@@ -2,33 +2,32 @@
 #include <cstdint>
 #include <mpfr.h>
 
+
 using namespace std;
 
 int main()
 {
-    uint32_t precision;
-    unsigned int i;
-    mpfr_t s, t, u;
+    const uint32_t precision = 512; // Set the precision to 512 bits
+    mpfr_set_default_prec(precision); // Set the default precision for all MPFR operations
+    mpfr_t s, t;
+    const long double a = 5, b = 7; 
 
-    mpfr_init2(t, 200);
-    mpfr_set_d(t, 1.0, MPFR_RNDD);
-    mpfr_init2(s, 200);
-    mpfr_set_d(s, 1.0, MPFR_RNDD);
-    mpfr_init2(u, 200);
-    for (i = 1; i <= 100; i++)
-    {
-        mpfr_mul_ui(t, t, i, MPFR_RNDU);
-        mpfr_set_d(u, 1.0, MPFR_RNDD);
-        mpfr_div(u, u, t, MPFR_RNDD);
-        mpfr_add(s, s, u, MPFR_RNDD);
-    }
-    printf("Sum is ");
-    mpfr_out_str(stdout, 10, 0, s, MPFR_RNDD);
-    putchar('\n');
+    mpfr_init2(t, precision); //initialize t with the specified precision
+    mpfr_set_d(t, a, MPFR_RNDN); // Set t to 10.0 with rounding mode MPFR_RNDN - round to nearest
+
+    mpfr_init2(s, precision);
+    mpfr_set_d(s, b, MPFR_RNDN);
+
+    mpfr_div(t, t, s, MPFR_RNDN); // Divide t by s and store the result in t with rounding mode MPFR_RNDN - t = t / s
+
+    cout << t << "/" << s << " = ";
+    mpfr_out_str(stdout, 10, 0, t, MPFR_RNDN); // Output t in base 10 with no digits after the decimal point
+    putchar('\n'); 
+
     mpfr_clear(s);
     mpfr_clear(t);
-    mpfr_clear(u);
     mpfr_free_cache();
+
     return 0;
 }
 
