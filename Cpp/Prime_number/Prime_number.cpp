@@ -28,7 +28,7 @@ int main()
 {
 
     int counter = 1;
-    int stop = 1'000'000'000;
+    int stop = 1'000'000;
     int precision = 1000;
     double progress = stop/precision;
     for (int i=3; i<=stop; i+=2) {

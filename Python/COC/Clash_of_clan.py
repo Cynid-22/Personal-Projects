@@ -1,12 +1,9 @@
 import requests
 import json
-import cred
-
-playerTag = "#GLGQPJCPU"
-clanTag = "#2RYGPO2R2"
+import Python.COC.creds as creds
 
 dataURL = "https://api.clashofclans.com/v1/players"
-apiURL = dataURL + "/" + playerTag + "?api_key=" + cred.API_KEY
+apiURL = dataURL + "/" + creds.playerTag + "?api_key=" + creds.API_KEY
 
 playerInfo = requests.get(apiURL).json()
 

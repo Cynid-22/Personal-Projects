@@ -1,5 +1,6 @@
-C:\Users\nguye\OneDrive\Máy tính\Git temp\Personal-Projects\Python\Valorant\cred.py
-C:\Users\nguye\OneDrive\Máy tính\Git temp\Personal-Projects\Python\COC\cred.py
+creds.py
+tempCodeRunnerFile.cpp
+*.exe
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -196,3 +197,11 @@ cython_debug/
 #  refer to https://docs.cursor.com/context/ignore-files
 .cursorignore
 .cursorindexingignore
+.vscode/tasks.json
+C++/SHA 256/Sha256.exe
+C++/SHA/Sha256.exe
+Python/Website_scraper/results.txt
+results.txt
+C++/test.cpp
+Cpp/test.cpp
+Cpp/test.cpp
