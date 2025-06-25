@@ -1,13 +1,14 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <iomanip>
 
 using namespace std;
 
 int main() {
     string word;
     int totalLength = 0;
-    int wordCount = 0;
+    long double wordCount = 0;
 
     ifstream file("AgileWords.txt");
 
@@ -22,8 +23,8 @@ int main() {
     if (wordCount == 0) {
         cout << "No words found in file." << endl;
     } else {
-        double average = double(totalLength) / wordCount;
-        cout << "Average word length: " << average << endl;
+        __float128 average = static_cast<__float128>(totalLength) / wordCount;
+        cout << "Average word length: " << fixed << setprecision(20) << average << endl;
     }
 
     return 0;
