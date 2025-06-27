@@ -28,7 +28,6 @@ string extract_tag(const string& source, const string& tag) {
 string clean_text(const string& text) {
     string result = text;
 
-    // Remove wiki markup: [[...]], {{...}}, ''italic'', '''bold'''
     regex brackets(R"(\[\[.*?\]\])");
     result = regex_replace(result, brackets, "");
 
@@ -47,7 +46,7 @@ string clean_text(const string& text) {
     return result;
 }
 
-void process_article(const string& page, const string& output_file) {
+void process_article(string page, const string& output_file) {
     if (should_skip(page)) return;
 
     string title = extract_tag(page, "title");
@@ -62,6 +61,7 @@ void process_article(const string& page, const string& output_file) {
     ofstream out(output_file, ios::app);
     if (out) {
         out << clean << "\n\n";
+        cout << "Saved: " << title << endl;
     }
 }
 
@@ -74,30 +74,42 @@ void process_file(const string& input_file, const string& output_file) {
 
     string line;
     string article;
+    bool inside_page = false;
     vector<thread> threads;
+    size_t line_count = 0;
 
     while (getline(in, line)) {
+        line_count++;
+        if (line_count % 100000 == 0) {
+            cout << "Read " << line_count << " lines..." << endl;
+        }
+
         if (line.find("<page>") != string::npos) {
-            article.clear();
+            inside_page = true;
+            article = line + "\n";
         } else if (line.find("</page>") != string::npos) {
+            article += line + "\n";
             threads.emplace_back(process_article, article, output_file);
-            if (threads.size() > 20) { // limit thread count
+            inside_page = false;
+
+            if (threads.size() >= 20) {
                 for (auto& t : threads) t.join();
                 threads.clear();
             }
-        } else {
+        } else if (inside_page) {
             article += line + "\n";
         }
     }
 
-    for (auto& t : threads) t.join(); // wait for remaining threads
+    for (auto& t : threads) t.join(); // join remaining
 }
 
 int main() {
     string input_file = "C:/Users/nguye/OneDrive/Desktop/viwiki-20250620-pages-articles-multistream.xml/viwiki-20250620-pages-articles-multistream.xml";
     string output_file = "C:/Users/nguye/OneDrive/Desktop/viwiki-20250620-pages-articles-multistream.xml/all_text.txt";
-    cout << "starting processing...\n";
+
+    cout << "Starting processing..." << endl;
     process_file(input_file, output_file);
-    cout << "Finished processing.\n";
+    cout << "Finished processing." << endl;
     return 0;
 }
