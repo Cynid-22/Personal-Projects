@@ -5,6 +5,8 @@
 #include <thread>
 #include <mutex>
 #include <vector>
+#include <codecvt>
+#include <locale>
 
 using namespace std;
 
@@ -16,12 +18,18 @@ bool should_skip(const string& page) {
 }
 
 string extract_tag(const string& source, const string& tag) {
-    string open_tag = "<" + tag + ">";
-    string close_tag = "</" + tag + ">";
-    size_t start = source.find(open_tag);
-    size_t end = source.find(close_tag);
-    if (start == string::npos || end == string::npos) return "";
-    start += open_tag.length();
+    // Match <tag ...> or <tag> and </tag>
+    size_t start = source.find("<" + tag);
+    if (start == string::npos) return "";
+
+    start = source.find(">", start);
+    if (start == string::npos) return "";
+
+    start += 1; // skip '>'
+
+    size_t end = source.find("</" + tag + ">", start);
+    if (end == string::npos) return "";
+
     return source.substr(start, end - start);
 }
 
@@ -59,6 +67,7 @@ void process_article(string page, const string& output_file) {
 
     lock_guard<mutex> guard(write_mutex);
     ofstream out(output_file, ios::app);
+    out.imbue(locale(locale(), new codecvt_utf8<wchar_t>));
     if (out) {
         out << clean << "\n\n";
         cout << "Saved: " << title << endl;
@@ -105,8 +114,8 @@ void process_file(const string& input_file, const string& output_file) {
 }
 
 int main() {
-    string input_file = "C:/Users/nguye/OneDrive/Desktop/viwiki-20250620-pages-articles-multistream.xml/viwiki-20250620-pages-articles-multistream.xml";
-    string output_file = "C:/Users/nguye/OneDrive/Desktop/viwiki-20250620-pages-articles-multistream.xml/all_text.txt";
+    string input_file = "C:/Users/nguye/OneDrive/Desktop/viwiki-20250620-pages-articles-multistream/viwiki-20250620-pages-articles-multistream.xml";
+    string output_file = "C:/Users/nguye/OneDrive/Desktop/viwiki-20250620-pages-articles-multistream/all_text.txt";
 
     cout << "Starting processing..." << endl;
     process_file(input_file, output_file);
