@@ -184,6 +184,6 @@ int main() {
 
     cout << "Starting processing..." << endl;
     process_file(input_file, output_file);
-    cout << "Finished processing." << endl;
+    cout << "Finished processing" << endl;
     return 0;
 }
