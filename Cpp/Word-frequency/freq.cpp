@@ -41,7 +41,7 @@ string clean_text(const string& text) {
     result = regex_replace(result, regex(R"(^[A-Z]*TITLE:.*?$)", regex_constants::multiline), "");
     result = regex_replace(result, regex(R"(^[A-Z]*TEXT:)", regex_constants::multiline), "");
 
-    // Also remove generic redirect lines like 'IRECT [[Page]]', 'RECT [[California]]'
+    // Remove generic redirect lines like 'IRECT [[Page]]'
     result = regex_replace(result, regex(R"(^[A-Z]*RECT\s+\[\[.*?\]\])", regex_constants::multiline), "");
 
     // 2. Remove HTML entities
@@ -49,6 +49,7 @@ string clean_text(const string& text) {
     result = regex_replace(result, regex(R"(&gt;)"), ">");
     result = regex_replace(result, regex(R"(&amp;)"), "&");
     result = regex_replace(result, regex(R"(&nbsp;)"), " ");
+    result = regex_replace(result, regex(R"(&quot;)"), "\"");
 
     // 3. Remove all HTML tags
     result = regex_replace(result, regex(R"(<[^>]+>)"), "");
@@ -57,15 +58,15 @@ string clean_text(const string& text) {
     for (int i = 0; i < 5; ++i)
         result = regex_replace(result, regex(R"(\{\{[^{}]*\}\})"), "");
 
-    // 5. Remove all [[...|...]] and [[...]] but keep visible text
+    // 5. Remove [[...|...]] and [[...]] (keep display text)
     result = regex_replace(result, regex(R"(\[\[[^\[\]]*\|([^\[\]]+)\]\])"), "$1");
     result = regex_replace(result, regex(R"(\[\[([^\[\]]+)\]\])"), "$1");
 
     // 6. Remove raw and bracketed URLs
-    result = regex_replace(result, regex(R"(\[https?:\/\/[^\s\]]+\s*([^\]]*)\])"), "$1"); // keep optional label
-    result = regex_replace(result, regex(R"(https?:\/\/\S+|\bwww\.\S+)"), ""); // remove plain URLs
+    result = regex_replace(result, regex(R"(\[https?:\/\/[^\s\]]+\s*([^\]]*)\])"), "$1");
+    result = regex_replace(result, regex(R"(https?:\/\/\S+|\bwww\.\S+)"), "");
 
-    // 7. Remove all bracket/angle/curly symbols
+    // 7. Remove all brackets/symbols
     result = regex_replace(result, regex(R"([\[\]\{\}<>=])"), "");
 
     // 8. Remove wiki table formatting and markup lines
@@ -74,7 +75,7 @@ string clean_text(const string& text) {
     result = regex_replace(result, regex(R"(\!\s*rowspan\s*=\s*\d+\s*\|)"), "");
     result = regex_replace(result, regex(R"(!\s*&nbsp;)"), "");
 
-    // 9. Remove Wikipedia markup tokens
+    // 9. Remove Wikipedia markup keywords
     result = regex_replace(result, regex(R"(IPAblink|IPAplink|IPA|sub|ref|templatestyles|wikitable)", regex_constants::icase), "");
 
     // 10. Remove metadata keys like "| id = something", "| icon modifier = something"
@@ -86,23 +87,25 @@ string clean_text(const string& text) {
     // 12. Remove encoded div tags
     result = regex_replace(result, regex(R"(&lt;/?div[^&]*&gt;)"), "");
 
-    // 13. Remove '' (bold/italic) and equal signs (headers)
+    // 13. Remove '' and equal signs
     result = regex_replace(result, regex(R"('{2,})"), "");
     result = regex_replace(result, regex(R"(=+)"), "");
 
-    // 14. Remove HTML line breaks
+    // 14. Remove <br> and <br />
     result = regex_replace(result, regex(R"(<br\s*/?>)", regex_constants::icase), "");
 
-    // 15. Normalize whitespace
+    // 15. Remove image/file extensions
+    result = regex_replace(result, regex(R"(\.(svg|png|jpg|jpeg|gif|pdf))", regex_constants::icase), "");
+
+    // 16. Normalize whitespace
     result = regex_replace(result, regex(R"(\s+)"), " ");
 
-    // 16. Final trim
+    // 17. Final trim
     if (!result.empty() && result.front() == ' ') result.erase(0, 1);
     if (!result.empty() && result.back() == ' ') result.pop_back();
 
     return result;
 }
-
 
 void process_article(const string& page, const string& output_file) {
     try {
