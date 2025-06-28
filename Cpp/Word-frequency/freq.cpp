@@ -120,8 +120,8 @@ void process_file(const string& input_file, const string& output_file) {
 }
 
 int main() {
-    string input_file = "input.xml";
-    string output_file = "cleaned_output.txt";
+    string input_file = "C:/Users/nguye/OneDrive/Desktop/viwiki-20250620-pages-articles-multistream/viwiki-20250620-pages-articles-multistream.xml";
+    string output_file = "C:/Users/nguye/OneDrive/Desktop/viwiki-20250620-pages-articles-multistream/all_text.txt";
     process_file(input_file, output_file);
     return 0;
 }
