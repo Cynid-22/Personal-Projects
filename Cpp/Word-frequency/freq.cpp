@@ -36,71 +36,75 @@ string extract_tag(const string& source, const string& tag) {
 string clean_text(const string& text) {
     string result = text;
 
-    // 1. Remove horizontal bars and variations of TITLE and TEXT headers
+    // 1. Remove TITLE, TEXT, REDIRECT labels
     result = regex_replace(result, regex(R"(^=+.*?$)", regex_constants::multiline), "");
     result = regex_replace(result, regex(R"(^[A-Z]*TITLE:.*?$)", regex_constants::multiline), "");
     result = regex_replace(result, regex(R"(^[A-Z]*TEXT:)", regex_constants::multiline), "");
-
-    // Remove generic redirect lines like 'IRECT [[Page]]'
     result = regex_replace(result, regex(R"(^[A-Z]*RECT\s+\[\[.*?\]\])", regex_constants::multiline), "");
 
-    // 2. Remove HTML entities
+    // 2. Replace HTML entities
     result = regex_replace(result, regex(R"(&lt;)"), "<");
     result = regex_replace(result, regex(R"(&gt;)"), ">");
     result = regex_replace(result, regex(R"(&amp;)"), "&");
     result = regex_replace(result, regex(R"(&nbsp;)"), " ");
     result = regex_replace(result, regex(R"(&quot;)"), "\"");
+    result = regex_replace(result, regex(R"(&#91;)"), "[");  // sometimes encoded
+    result = regex_replace(result, regex(R"(&#93;)"), "]");
 
-    // 3. Remove all HTML tags
+    // 3. Remove full HTML tags
     result = regex_replace(result, regex(R"(<[^>]+>)"), "");
 
-    // 4. Remove all {{...}} templates (up to 5 levels deep)
+    // 4. Remove templates like {{...}} deeply
     for (int i = 0; i < 5; ++i)
         result = regex_replace(result, regex(R"(\{\{[^{}]*\}\})"), "");
 
-    // 5. Remove [[...|...]] and [[...]] (keep display text)
+    // 5. Remove file/media/image links like [[File:...|...]] or plain "Tập_tin:" URLs
+    result = regex_replace(result, regex(R"(\[\[(File|Tập_tin):[^\[\]]*\]\])", regex_constants::icase), "");
+    result = regex_replace(result, regex(R"(https?:\/\/vi\.wikipedia\.org\/wiki\/T%E1%BA%ADp_tin:[^\s\|]+(\|[^\s\|]*)*)", regex_constants::icase), "");
+
+    // 6. Remove wikilinks but preserve label
     result = regex_replace(result, regex(R"(\[\[[^\[\]]*\|([^\[\]]+)\]\])"), "$1");
     result = regex_replace(result, regex(R"(\[\[([^\[\]]+)\]\])"), "$1");
 
-    // 6. Remove raw and bracketed URLs
+    // 7. Remove [http... caption] style links
     result = regex_replace(result, regex(R"(\[https?:\/\/[^\s\]]+\s*([^\]]*)\])"), "$1");
     result = regex_replace(result, regex(R"(https?:\/\/\S+|\bwww\.\S+)"), "");
 
-    // 7. Remove all brackets/symbols
+    // 8. Remove brackets and misc. symbols
     result = regex_replace(result, regex(R"([\[\]\{\}<>=])"), "");
 
-    // 8. Remove wiki table formatting and markup lines
+    // 9. Remove table formatting and row markup
     result = regex_replace(result, regex(R"(^\s*[\|\!].*?$)", regex_constants::multiline), "");
     result = regex_replace(result, regex(R"(\|\s*colspan\s*=\s*\d+\s*\|)"), "");
     result = regex_replace(result, regex(R"(\!\s*rowspan\s*=\s*\d+\s*\|)"), "");
     result = regex_replace(result, regex(R"(!\s*&nbsp;)"), "");
 
-    // 9. Remove Wikipedia markup keywords
+    // 10. Remove specific Wikipedia keywords
     result = regex_replace(result, regex(R"(IPAblink|IPAplink|IPA|sub|ref|templatestyles|wikitable)", regex_constants::icase), "");
 
-    // 10. Remove metadata keys like "| id = something", "| icon modifier = something"
+    // 11. Remove metadata keys like "| id = something"
     result = regex_replace(result, regex(R"(\|\s*[a-zA-Z_ \-]+=\s*[^|\n]+)"), "");
 
-    // 11. Remove HTML comments
+    // 12. Remove HTML comments
     result = regex_replace(result, regex(R"(<!--[\s\S]*?-->)"), "");
 
-    // 12. Remove encoded div tags
+    // 13. Remove encoded div tags
     result = regex_replace(result, regex(R"(&lt;/?div[^&]*&gt;)"), "");
 
-    // 13. Remove '' and equal signs
+    // 14. Remove '' and =
     result = regex_replace(result, regex(R"('{2,})"), "");
     result = regex_replace(result, regex(R"(=+)"), "");
 
-    // 14. Remove <br> and <br />
+    // 15. Remove <br>, <br />, etc.
     result = regex_replace(result, regex(R"(<br\s*/?>)", regex_constants::icase), "");
 
-    // 15. Remove image/file extensions
-    result = regex_replace(result, regex(R"(\.(svg|png|jpg|jpeg|gif|pdf))", regex_constants::icase), "");
+    // 16. Remove file extensions like .svg, .jpg, .png, .pdf (in text or filenames)
+    result = regex_replace(result, regex(R"(\b\S+\.(svg|jpg|jpeg|png|gif|pdf)\b)", regex_constants::icase), "");
 
-    // 16. Normalize whitespace
+    // 17. Normalize whitespace
     result = regex_replace(result, regex(R"(\s+)"), " ");
 
-    // 17. Final trim
+    // 18. Final trim
     if (!result.empty() && result.front() == ' ') result.erase(0, 1);
     if (!result.empty() && result.back() == ' ') result.pop_back();
 
