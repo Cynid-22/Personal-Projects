@@ -40,7 +40,7 @@ int main() {
 
     file.close();
 
-    ofstream output_file("char_frequencies.txt", ios::out | ios::binary);
+    ofstream output_file("char_freq.txt", ios::out | ios::binary);
     if (!output_file.is_open()) {
         cerr << "Failed to open output file." << endl;
         return 1;
