@@ -99,7 +99,7 @@ string clean_text(const string& text) {
     result = regex_replace(result, regex(R"(<br\s*/?>)", regex_constants::icase), "");
 
     // 16. Remove file extensions like .svg, .jpg, .png, .pdf (in text or filenames)
-    result = regex_replace(result, regex(R"(\b\S+\.(svg|jpg|jpeg|png|gif|pdf)\b)", regex_constants::icase), "");
+    result = regex_replace(result, regex(R"(\b\S+\.(svg|jpg|jpeg|png|gif|pdf|html|css|com|co|us|vn)\b)", regex_constants::icase), "");
 
     // 17. Normalize whitespace
     result = regex_replace(result, regex(R"(\s+)"), " ");
