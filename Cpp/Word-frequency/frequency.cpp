@@ -11,7 +11,6 @@ using namespace std;
 using namespace icu;
 
 bool is_valid_vietnamese_char(UChar32 c) {
-    // Exclude punctuation, symbols, spaces, digits
     return u_isalpha(c);
 }
 
@@ -40,7 +39,7 @@ int main() {
 
     file.close();
 
-    ofstream output_file("char_freq.txt", ios::out | ios::binary);
+    ofstream output_file("C:/Users/nguye/OneDrive/Desktop/Git-temp/Personal-Projects/Cpp/Word-frequency/char_freq.txt", ios::out | ios::binary);
     if (!output_file.is_open()) {
         cerr << "Failed to open output file." << endl;
         return 1;
@@ -54,7 +53,7 @@ int main() {
     }
 
     output_file.close();
-    cout << "Character frequency written to char_frequencies.txt\n";
+    cout << "Done.\n";
 
     return 0;
 }

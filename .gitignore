@@ -197,9 +197,14 @@ cython_debug/
 #  refer to https://docs.cursor.com/context/ignore-files
 .cursorignore
 .cursorindexingignore
-.vscode/tasks.json
+.vscode
 C++/SHA 256/Sha256.exe
 C++/SHA/Sha256.exe
 Python/Website_scraper/results.txt
 results.txt
 Cpp/test.cpp
+*.a
+Cpp/Word-frequency/uchar.h
+Cpp/Word-frequency/unistr.h
+Cpp/Word-frequency/ustream.h
+Cpp/Word-frequency/utf8.h
