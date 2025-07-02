@@ -17,94 +17,121 @@ bool should_skip(const string& page) {
            page.find("(disambiguation)") != string::npos;
 }
 
+// Extract content inside <tag>...</tag>
 string extract_tag(const string& source, const string& tag) {
-    // Match <tag ...> or <tag> and </tag>
     size_t start = source.find("<" + tag);
     if (start == string::npos) return "";
 
     start = source.find(">", start);
     if (start == string::npos) return "";
 
-    start += 1; // skip '>'
-
+    start += 1;
     size_t end = source.find("</" + tag + ">", start);
     if (end == string::npos) return "";
 
     return source.substr(start, end - start);
 }
 
+// Token structure for HTML tokenizer
+struct Token {
+    string type;
+    string value;
+};
+
+// Tokenize HTML into TAG and TEXT parts
+vector<Token> tokenize(const string& html) {
+    vector<Token> tokens;
+    size_t pos = 0;
+    while (pos < html.size()) {
+        if (html[pos] == '<') {
+            size_t endPos = html.find('>', pos);
+            if (endPos != string::npos) {
+                tokens.push_back({"TAG", html.substr(pos, endPos - pos + 1)});
+                pos = endPos + 1;
+            } else {
+                break;
+            }
+        } else {
+            size_t endPos = html.find('<', pos);
+            if (endPos == string::npos) endPos = html.size();
+            tokens.push_back({"TEXT", html.substr(pos, endPos - pos)});
+            pos = endPos;
+        }
+    }
+    return tokens;
+}
+
+string remove_templates(const string& text) {
+    string output;
+    int depth = 0;
+    for (size_t i = 0; i < text.size(); ++i) {
+        if (i + 1 < text.size() && text[i] == '{' && text[i + 1] == '{') {
+            depth++;
+            i++; // Skip next '{'
+        } else if (i + 1 < text.size() && text[i] == '}' && text[i + 1] == '}') {
+            if (depth > 0) depth--;
+            i++; // Skip next '}'
+        } else if (depth == 0) {
+            output += text[i];
+        }
+    }
+    return output;
+}
+
 string clean_text(const string& text) {
     string result = text;
 
-    // 1. Remove TITLE, TEXT, REDIRECT labels
-    result = regex_replace(result, regex(R"(^=+.*?$)", regex_constants::multiline), "");
-    result = regex_replace(result, regex(R"(^[A-Z]*TITLE:.*?$)", regex_constants::multiline), "");
-    result = regex_replace(result, regex(R"(^[A-Z]*TEXT:)", regex_constants::multiline), "");
-    result = regex_replace(result, regex(R"(^[A-Z]*RECT\s+\[\[.*?\]\])", regex_constants::multiline), "");
+    result = regex_replace(result, regex(R"(/[\w\-]+)"), "");  // Remove slash-prefixed words like /div, /noninclude
+    result = regex_replace(result, regex(R"(&[a-zA-Z]+)"), ""); // Remove entities like &div, &noninclude, etc.
 
-    // 2. Replace HTML entities
-    result = regex_replace(result, regex(R"(&lt;)"), "<");
-    result = regex_replace(result, regex(R"(&gt;)"), ">");
-    result = regex_replace(result, regex(R"(&amp;)"), "&");
-    result = regex_replace(result, regex(R"(&nbsp;)"), " ");
-    result = regex_replace(result, regex(R"(&quot;)"), "\"");
-    result = regex_replace(result, regex(R"(&#91;)"), "[");  // sometimes encoded
-    result = regex_replace(result, regex(R"(&#93;)"), "]");
+    // Remove deeply nested templates like {{...}} with non-regex parser
+    result = remove_templates(result);
+    // for (int i = 0; i < 5; ++i)
+    //     result = regex_replace(result, regex(R"(\{\{[^{}]*\}\})"), "");
 
-    // 3. Remove full HTML tags
-    result = regex_replace(result, regex(R"(<[^>]+>)"), "");
-
-    // 4. Remove templates like {{...}} deeply
-    for (int i = 0; i < 5; ++i)
-        result = regex_replace(result, regex(R"(\{\{[^{}]*\}\})"), "");
-
-    // 5. Remove file/media/image links like [[File:...|...]] or plain "Tập_tin:" URLs
+    // Remove full media/file links like [[File:...]] or [[Tập_tin:...]]
     result = regex_replace(result, regex(R"(\[\[(File|Tập_tin):[^\[\]]*\]\])", regex_constants::icase), "");
     result = regex_replace(result, regex(R"(https?:\/\/vi\.wikipedia\.org\/wiki\/T%E1%BA%ADp_tin:[^\s\|]+(\|[^\s\|]*)*)", regex_constants::icase), "");
 
-    // 6. Remove wikilinks but preserve label
-    result = regex_replace(result, regex(R"(\[\[[^\[\]]*\|([^\[\]]+)\]\])"), "$1");
-    result = regex_replace(result, regex(R"(\[\[([^\[\]]+)\]\])"), "$1");
+    // Remove wikilinks [[A|B]], and [[A]]
+    result = regex_replace(result, regex(R"(\[\[[^\[\]]*\|([^\[\]]+)\]\])"), " ");
+    result = regex_replace(result, regex(R"(\[\[([^\[\]]+)\]\])"), " ");
 
-    // 7. Remove [http... caption] style links
+    // Remove external link markup [http://... text] → text, and plain URLs
     result = regex_replace(result, regex(R"(\[https?:\/\/[^\s\]]+\s*([^\]]*)\])"), "$1");
     result = regex_replace(result, regex(R"(https?:\/\/\S+|\bwww\.\S+)"), "");
 
-    // 8. Remove brackets and misc. symbols
+    // Remove leftover symbols and brackets
     result = regex_replace(result, regex(R"([\[\]\{\}<>=])"), "");
 
-    // 9. Remove table formatting and row markup
+    // Remove table formatting lines starting with | or !
     result = regex_replace(result, regex(R"(^\s*[\|\!].*?$)", regex_constants::multiline), "");
     result = regex_replace(result, regex(R"(\|\s*colspan\s*=\s*\d+\s*\|)"), "");
     result = regex_replace(result, regex(R"(\!\s*rowspan\s*=\s*\d+\s*\|)"), "");
     result = regex_replace(result, regex(R"(!\s*&nbsp;)"), "");
 
-    // 10. Remove specific Wikipedia keywords
-    result = regex_replace(result, regex(R"(IPAblink|IPAplink|IPA|sub|ref|templatestyles|wikitable)", regex_constants::icase), "");
+    // Remove template/meta keywords like IPA, ref, etc.
+    result = regex_replace(result, regex(R"(IPAblink|IPAplink|IPA|sub|ref|templatestyles|wikitable|div|noinclude)", regex_constants::icase), "");
 
-    // 11. Remove metadata keys like "| id = something"
+    // Remove things like "| id = value" and metadata
     result = regex_replace(result, regex(R"(\|\s*[a-zA-Z_ \-]+=\s*[^|\n]+)"), "");
 
-    // 12. Remove HTML comments
+    // Remove HTML comments <!-- ... -->
     result = regex_replace(result, regex(R"(<!--[\s\S]*?-->)"), "");
 
-    // 13. Remove encoded div tags
-    result = regex_replace(result, regex(R"(&lt;/?div[^&]*&gt;)"), "");
-
-    // 14. Remove '' and =
+    // Remove multiple apostrophes '' or ''' used for bold/italic
     result = regex_replace(result, regex(R"('{2,})"), "");
+
+    // Remove sequences of =
     result = regex_replace(result, regex(R"(=+)"), "");
 
-    // 15. Remove <br>, <br />, etc.
-    result = regex_replace(result, regex(R"(<br\s*/?>)", regex_constants::icase), "");
-
-    // 16. Remove file extensions like .svg, .jpg, .png, .pdf (in text or filenames)
+    // Remove file extensions (.jpg, .png, .svg, ...)
     result = regex_replace(result, regex(R"(\b\S+\.(svg|jpg|jpeg|png|gif|pdf|html|css|com|co|us|vn)\b)", regex_constants::icase), "");
 
-    // 17. Normalize whitespace
+    // Normalize whitespace (collapse to single space)
     result = regex_replace(result, regex(R"(\s+)"), " ");
 
-    // 18. Final trim
+    // Trim leading and trailing spaces
     if (!result.empty() && result.front() == ' ') result.erase(0, 1);
     if (!result.empty() && result.back() == ' ') result.pop_back();
 
@@ -117,27 +144,63 @@ void process_article(const string& page, const string& output_file) {
         string raw_text = extract_tag(page, "text");
 
         if (title.empty() && raw_text.empty()) {
-            cerr << "⚠️  Skipped: Empty title and text\n";
+            cerr << "Skipped: Empty title and text\n";
             return;
         }
 
+        if (title.rfind("Wikipedia:", 0) == 0)
+            return;
+
+        if (title.rfind("MediaWiki:", 0) == 0)
+            return;
+
+        if (title.rfind("Trợ giúp:", 0) == 0)
+            return;
+
+        if (title.rfind("Bản mẫu:", 0) == 0)
+            return;
+
+        if (title.rfind("Tập tin:", 0) == 0)
+            return;
+
+        if (title.rfind("Cổng thông tin:", 0) == 0)
+            return;
+
+        // Extract visible text using tokenizer
+        string visible_text;
+        for (const auto& token : tokenize(raw_text)) {
+            if (token.type == "TEXT") {
+                visible_text += token.value;
+            }
+        }
+
+        // Clean it
+        visible_text = clean_text(visible_text);
+
+        lock_guard<mutex> lock(write_mutex);
         ofstream out(output_file, ios::app | ios::binary);
         if (!out) {
-            cerr << "❌ ERROR: Cannot open file.\n";
+            cerr << "ERROR: Cannot open file.\n";
             return;
         }
 
         out << "====================\n";
         out << "TITLE: " << title << "\n";
-        out << "TEXT:\n" << raw_text << "\n\n";
+        out << "TEXT:\n" << visible_text << "\n\n";
     }
+    catch (const regex_error& re) {
+    cerr << "Regex error in page: " << extract_tag(page, "title") << " → " << re.what() << endl;
+    }
+
     catch (const exception& e) {
-        cerr << "‼️  Exception caught in process_article: " << e.what() << endl;
+        cerr << "Exception in page: " << extract_tag(page, "title") << " → " << e.what() << endl;
     }
+
     catch (...) {
-        cerr << "‼️  Unknown error occurred in process_article" << endl;
+        cerr << "Unknown error occurred in process_article" << endl;
     }
 }
+
 
 void process_file(const string& input_file, const string& output_file) {
     ifstream in(input_file);
@@ -175,12 +238,15 @@ void process_file(const string& input_file, const string& output_file) {
         }
     }
 
-    for (auto& t : threads) t.join(); // join remaining
+    for (auto& t : threads) {
+        if (t.joinable()) t.join();
+    }
+
 }
 
 int main() {
     string input_file = "C:/Users/nguye/OneDrive/Desktop/viwiki-20250620-pages-articles-multistream/viwiki-20250620-pages-articles-multistream.xml";
-    string output_file = "C:/Users/nguye/OneDrive/Desktop/viwiki-20250620-pages-articles-multistream/all_text.txt";
+    string output_file = "C:/Users/nguye/OneDrive/Desktop/viwiki-20250620-pages-articles-multistream/all_text_cpp2.txt";
 
     cout << "Starting processing..." << endl;
     process_file(input_file, output_file);
