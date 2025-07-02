@@ -9,6 +9,7 @@
 #include <locale>
 #include <queue>
 #include <condition_variable>
+#include <filesystem> 
 
 using namespace std;
 
@@ -247,18 +248,22 @@ void process_file(const string& input_file, const string& output_file) {
         return;
     }
 
-    vector<thread> workers;
-    for (size_t i = 0; i < MAX_THREADS; ++i)
-        workers.emplace_back(worker, output_file);
+    uint64_t total_bytes = filesystem::file_size(input_file);  // Get total file size
+    uint64_t bytes_read = 0;
+    int last_percent = -1;
 
-    string line, article;
+    string line;
+    string article;
     bool inside_page = false;
-    size_t line_count = 0;
+    vector<thread> threads;
 
     while (getline(in, line)) {
-        line_count++;
-        if (line_count % 100000 == 0) {
-            cout << "Read " << line_count << " lines...\n";
+        bytes_read += line.size() + 1; // account for newline
+        int percent = static_cast<int>((bytes_read * 100) / total_bytes);
+
+        if (percent != last_percent) {
+            cout << "\rProgress: " << percent << "%" << flush;
+            last_percent = percent;
         }
 
         if (line.find("<page>") != string::npos) {
@@ -266,24 +271,23 @@ void process_file(const string& input_file, const string& output_file) {
             article = line + "\n";
         } else if (line.find("</page>") != string::npos) {
             article += line + "\n";
-            {
-                lock_guard<mutex> lock(queue_mutex);
-                work_queue.push(article);
-            }
-            cv.notify_one();
+            threads.emplace_back(process_article, article, output_file);
             inside_page = false;
+
+            if (threads.size() >= 20) {
+                for (auto& t : threads) t.join();
+                threads.clear();
+            }
         } else if (inside_page) {
             article += line + "\n";
         }
     }
 
-    {
-        lock_guard<mutex> lock(queue_mutex);
-        done_reading = true;
+    for (auto& t : threads) {
+        if (t.joinable()) t.join();
     }
-    cv.notify_all();
 
-    for (auto& t : workers) t.join();
+    cout << "\nDone reading file." << endl;
 }
 
 int main() {

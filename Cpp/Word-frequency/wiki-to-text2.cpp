@@ -17,20 +17,22 @@ using namespace std;
 static const size_t MAX_THREADS = thread::hardware_concurrency() ? max(int(thread::hardware_concurrency())-2, 1) : 1;
 
 mutex write_mutex;
+mutex queue_mutex;
+condition_variable cv;
+queue<string> work_queue;
 ofstream global_out;
 bool done_reading = false;
-queue<string> work_queue;
-condition_variable cv;
-
-void worker_thread();
 
 struct RegexRule {
     const regex pattern;
     const string replace;
 };
 static const vector<RegexRule> CLEAN_RULES = {
-    { regex(R"(/[\w\-]+)"), "" },  // slash-prefixed words
-    { regex(R"(&[a-zA-Z]+)"), "" },  // entities
+    { regex(R"(<sha1>[^<]*</sha1>)"), "" },
+    { regex(R"(/[\w\-]+/)"), "" },
+    { regex(R"(\\[a-zA-Z]+)"), "" }, // remove LaTeX commands like \frac, \left, \sigma
+    { regex(R"(/([^/\n]*[\t ][^/\n]*)/)"), "$1" },
+    { regex(R"(&[a-zA-Z]+)"), "" },
     { regex(R"(\[\[(File|Tập_tin):[^\[\]]*\]\])", regex_constants::icase), "" },
     { regex(R"(https?:\/\/vi\.wikipedia\.org\/wiki\/T%E1%BA%ADp_tin:[^\s\|]+(\|[^\s\|]*)*)", regex_constants::icase), "" },
     { regex(R"(\[\[[^\[\]]*\|([^\[\]]+)\]\])"), " " },
@@ -38,7 +40,7 @@ static const vector<RegexRule> CLEAN_RULES = {
     { regex(R"(\[https?:\/\/[^\s\]]+\s*([^\]]*)\])"), "$1" },
     { regex(R"(https?:\/\/\S+|\bwww\.\S+)"), "" },
     { regex(R"([\[\]\{\}<>=])"), "" },
-    { regex(R"(^\s*[\|\!].*?$)", regex_constants::multiline), "" }, //////////////
+    { regex(R"(^\s*[\|\!].*?$)", regex_constants::multiline), "" },
     { regex(R"(\|\s*colspan\s*=\s*\d+\s*\|)"), "" },
     { regex(R"(\!\s*rowspan\s*=\s*\d+\s*\|)"), "" },
     { regex(R"(!\s*&nbsp;)"), "" },
@@ -71,7 +73,6 @@ struct Token { string type, value; };
 
 vector<Token> tokenize(const string& html) {
     vector<Token> tokens;
-    tokens.reserve(32);
     size_t pos = 0, sz = html.size();
     while (pos < sz) {
         if (html[pos] == '<') {
@@ -91,83 +92,82 @@ vector<Token> tokenize(const string& html) {
 
 string remove_templates(const string& text) {
     string output;
-    output.reserve(text.size());
     int depth = 0;
-    const char* ptr = text.data();
-    const char* end = ptr + text.size();
-    while (ptr < end) {
-        if (*ptr != '{' && *ptr != '}') {
-            output.push_back(*ptr++);
-            continue;
-        }
-        if (ptr + 1 < end && ptr[0]=='{' && ptr[1]=='{') {
-            depth++; ptr += 2;
-        }
-        else if (ptr + 1 < end && ptr[0]=='}' && ptr[1]=='}' && depth>0) {
-            depth--; ptr += 2;
-        }
-        else {
-            if (depth==0) output.push_back(*ptr);
-            ptr++;
+    size_t i = 0, n = text.size();
+
+    while (i < n) {
+        if (i + 1 < n && text[i] == '{' && text[i + 1] == '{') {
+            depth++;
+            i += 2;
+        } else if (i + 1 < n && text[i] == '}' && text[i + 1] == '}') {
+            if (depth > 0) depth--;
+            i += 2;
+        } else {
+            if (depth == 0)
+                output += text[i];
+            i++;
         }
     }
+
     return output;
 }
 
 string clean_text(const string& text) {
-    string result = remove_templates(text);
+    try {
+        string result = remove_templates(text);
 
-    for (auto& rule : CLEAN_RULES)
-        result = regex_replace(result, rule.pattern, rule.replace);
+        for (auto& rule : CLEAN_RULES)
+            result = regex_replace(result, rule.pattern, rule.replace);
 
-    if (!result.empty() && result.front()==' ') result.erase(0,1);
-    if (!result.empty() && result.back() ==' ') result.pop_back();
-    return result;
+        if (!result.empty() && result.front()==' ') result.erase(0,1);
+        if (!result.empty() && result.back() ==' ') result.pop_back();
+        return result;
+    } catch (const exception& e) {
+        cerr << "[clean_text error] " << e.what() << endl;
+        return ""; // skip this article safely
+    }
 }
 
 void process_article(const string& page) {
     if (should_skip(page)) return;
-
-    auto title    = extract_tag(page, "title");
+    auto title = extract_tag(page, "title");
     auto raw_text = extract_tag(page, "text");
+    raw_text = regex_replace(raw_text, regex(R"(<sha1>[^<]*</sha1>)"), "");
     if (title.empty() || raw_text.empty()) return;
 
-    // filter out namespace pages
     static const vector<string> BAD_PREFIX = {
         "Wikipedia:", "MediaWiki:", "Trợ giúp:", "Bản mẫu:", "Tập tin:", "Cổng thông tin:"
     };
-
     for (auto& pre : BAD_PREFIX)
         if (title.rfind(pre,0)==0) return;
 
-    // extract visible text
     string visible;
     for (auto& tk : tokenize(raw_text))
         if (tk.type=="TEXT") visible += tk.value;
 
-    // clean up
     visible = clean_text(visible);
 
-    // buffer output
     ostringstream oss;
     oss << "====================\n";
     oss << "TITLE: " << title << "\n";
     oss << "TEXT:\n" << visible << "\n\n";
 
-    // write under lock
-    {
-        lock_guard<mutex> lk(write_mutex);
-        global_out << oss.str();
-    }
+    lock_guard<mutex> lk(write_mutex);
+    global_out << oss.str();
 }
 
 void worker_thread() {
     while (true) {
         string article;
         {
-            unique_lock<mutex> lk(write_mutex);
-            cv.wait(lk, [] { return !work_queue.empty() || done_reading; });
-            if (work_queue.empty() && done_reading) break;
+            unique_lock<mutex> lk(queue_mutex);
+            cv.wait(lk, [&] { return !work_queue.empty() || done_reading; });
+
+            if (work_queue.empty()) {
+                if (done_reading) break;
+                continue;
+            }
+
             article = move(work_queue.front());
             work_queue.pop();
         }
@@ -176,10 +176,10 @@ void worker_thread() {
             process_article(article);
         } catch (const exception& e) {
             lock_guard<mutex> lock(write_mutex);
-            cerr << "\n[ERROR] Exception in worker: " << e.what() << endl;
+            cerr << "\n[ERROR] Exception: " << e.what() << endl;
         } catch (...) {
             lock_guard<mutex> lock(write_mutex);
-            cerr << "\n[ERROR] Unknown exception in worker.\n";
+            cerr << "\n[ERROR] Unknown Exception.\n";
         }
     }
 }
@@ -190,12 +190,10 @@ void process_file(const string& in_file, const string& out_file) {
     global_out.open(out_file, ios::app | ios::binary);
     if (!global_out) throw runtime_error("Cannot open output file");
 
-    // launch workers
     vector<thread> workers;
     for (size_t i = 0; i < MAX_THREADS; ++i)
         workers.emplace_back(worker_thread);
 
-    // read & dispatch pages
     string line, article;
     bool inside = false;
     uint64_t total_bytes = filesystem::file_size(in_file);
@@ -220,7 +218,7 @@ void process_file(const string& in_file, const string& out_file) {
         else if (line.find("</page>") != string::npos) {
             article += line + "\n";
             {
-                lock_guard<mutex> lk(write_mutex);
+                lock_guard<mutex> lk(queue_mutex);
                 work_queue.push(article);
             }
             cv.notify_one();
@@ -232,17 +230,14 @@ void process_file(const string& in_file, const string& out_file) {
     }
 
     cout << "\rProgress: 100%\n";
-
-    // signal workers to finish
     {
-        lock_guard<mutex> lk(write_mutex);
+        lock_guard<mutex> lk(queue_mutex);
         done_reading = true;
     }
     cv.notify_all();
 
     for (auto& t : workers) t.join();
 }
-
 
 int main() {
     const string input_file = "C:/Users/nguye/OneDrive/Desktop/viwiki-20250620-pages-articles-multistream/viwiki-20250620-pages-articles-multistream.xml";
