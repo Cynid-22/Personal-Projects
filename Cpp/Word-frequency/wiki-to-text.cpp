@@ -7,10 +7,18 @@
 #include <vector>
 #include <codecvt>
 #include <locale>
+#include <queue>
+#include <condition_variable>
 
 using namespace std;
 
+const size_t MAX_THREADS = thread::hardware_concurrency() ? thread::hardware_concurrency() - 2 : 2;
 mutex write_mutex;
+mutex queue_mutex;
+condition_variable cv;
+queue<string> work_queue;
+bool done_reading = false;
+
 
 bool should_skip(const string& page) {
     return page.find("<redirect title=") != string::npos ||
@@ -63,18 +71,33 @@ vector<Token> tokenize(const string& html) {
 
 string remove_templates(const string& text) {
     string output;
+    output.reserve(text.size());
+
     int depth = 0;
-    for (size_t i = 0; i < text.size(); ++i) {
-        if (i + 1 < text.size() && text[i] == '{' && text[i + 1] == '{') {
+    const char* ptr = text.data();
+    const char* end = ptr + text.size();
+
+    while (ptr < end) {
+        if (*ptr != '{' && *ptr != '}') {
+            output.push_back(*ptr++);
+            continue;
+        }
+
+        if (ptr + 1 < end && ptr[0] == '{' && ptr[1] == '{') {
             depth++;
-            i++; // Skip next '{'
-        } else if (i + 1 < text.size() && text[i] == '}' && text[i + 1] == '}') {
-            if (depth > 0) depth--;
-            i++; // Skip next '}'
-        } else if (depth == 0) {
-            output += text[i];
+            ptr += 2;
+        }
+        else if (ptr + 1 < end && ptr[0] == '}' && ptr[1] == '}' && depth > 0) {
+            depth--;
+            ptr += 2;
+        }
+        else {
+            if (depth == 0)
+                output.push_back(*ptr);
+            ptr++;
         }
     }
+
     return output;
 }
 
@@ -201,6 +224,21 @@ void process_article(const string& page, const string& output_file) {
     }
 }
 
+void worker(const string& output_file) {
+    while (true) {
+        string article;
+        {
+            unique_lock<mutex> lock(queue_mutex);
+            cv.wait(lock, [] { return !work_queue.empty() || done_reading; });
+
+            if (work_queue.empty() && done_reading) break;
+
+            article = move(work_queue.front());
+            work_queue.pop();
+        }
+        process_article(article, output_file);
+    }
+}
 
 void process_file(const string& input_file, const string& output_file) {
     ifstream in(input_file);
@@ -209,16 +247,18 @@ void process_file(const string& input_file, const string& output_file) {
         return;
     }
 
-    string line;
-    string article;
+    vector<thread> workers;
+    for (size_t i = 0; i < MAX_THREADS; ++i)
+        workers.emplace_back(worker, output_file);
+
+    string line, article;
     bool inside_page = false;
-    vector<thread> threads;
     size_t line_count = 0;
 
     while (getline(in, line)) {
         line_count++;
         if (line_count % 100000 == 0) {
-            cout << "Read " << line_count << " lines..." << endl;
+            cout << "Read " << line_count << " lines...\n";
         }
 
         if (line.find("<page>") != string::npos) {
@@ -226,27 +266,30 @@ void process_file(const string& input_file, const string& output_file) {
             article = line + "\n";
         } else if (line.find("</page>") != string::npos) {
             article += line + "\n";
-            threads.emplace_back(process_article, article, output_file);
-            inside_page = false;
-
-            if (threads.size() >= 20) {
-                for (auto& t : threads) t.join();
-                threads.clear();
+            {
+                lock_guard<mutex> lock(queue_mutex);
+                work_queue.push(article);
             }
+            cv.notify_one();
+            inside_page = false;
         } else if (inside_page) {
             article += line + "\n";
         }
     }
 
-    for (auto& t : threads) {
-        if (t.joinable()) t.join();
+    {
+        lock_guard<mutex> lock(queue_mutex);
+        done_reading = true;
     }
+    cv.notify_all();
 
+    for (auto& t : workers) t.join();
 }
 
 int main() {
-    string input_file = "C:/Users/nguye/OneDrive/Desktop/viwiki-20250620-pages-articles-multistream/viwiki-20250620-pages-articles-multistream.xml";
-    string output_file = "C:/Users/nguye/OneDrive/Desktop/viwiki-20250620-pages-articles-multistream/all_text_cpp2.txt";
+    
+    const string input_file = "C:/Users/nguye/OneDrive/Desktop/viwiki-20250620-pages-articles-multistream/viwiki-20250620-pages-articles-multistream.xml";
+    const string output_file = "C:/Users/nguye/OneDrive/Desktop/viwiki-20250620-pages-articles-multistream/all_text_cpp2.txt";
 
     cout << "Starting processing..." << endl;
     process_file(input_file, output_file);
