@@ -1,12 +1,9 @@
 #include <iostream>
 #include <fstream>
 #include <string>
-#include <regex>
 #include <thread>
 #include <mutex>
 #include <vector>
-#include <codecvt>
-#include <locale>
 #include <filesystem>
 #include <sstream>
 #include <queue>
@@ -14,8 +11,7 @@
 
 using namespace std;
 
-static const size_t MAX_THREADS = thread::hardware_concurrency() ? max(int(thread::hardware_concurrency())-2, 1) : 1;
-// static const size_t MAX_THREADS = 1;
+static const size_t MAX_THREADS = thread::hardware_concurrency() ? max(int(thread::hardware_concurrency()) - 2, 1) : 1;
 
 mutex write_mutex;
 mutex queue_mutex;
@@ -23,11 +19,6 @@ condition_variable cv;
 queue<string> work_queue;
 ofstream global_out;
 bool done_reading = false;
-
-struct RegexRule {
-    const regex pattern;
-    const string replace;
-};
 
 bool should_skip(const string& page) {
     return page.find("<redirect title=") != string::npos ||
@@ -72,21 +63,18 @@ string remove_templates(const string& text) {
     int brace_depth = 0;
 
     while (i < n) {
-        // Detect opening {{
         if (i + 1 < n && text[i] == '{' && text[i + 1] == '{') {
             brace_depth++;
             i += 2;
             continue;
         }
 
-        // Detect closing }}
         if (i + 1 < n && text[i] == '}' && text[i + 1] == '}') {
             if (brace_depth > 0) brace_depth--;
             i += 2;
             continue;
         }
 
-        // Copy character only if outside template
         if (brace_depth == 0)
             output += text[i];
 
@@ -96,13 +84,12 @@ string remove_templates(const string& text) {
     return output;
 }
 
-
 string clean_text(const string& text) {
     try {
         string result = remove_templates(text);
 
-        if (!result.empty() && result.front()==' ') result.erase(0,1);
-        if (!result.empty() && result.back() ==' ') result.pop_back();
+        if (!result.empty() && result.front() == ' ') result.erase(0, 1);
+        if (!result.empty() && result.back() == ' ') result.pop_back();
         return result;
     } catch (const exception& e) {
         cerr << "[clean_text error] " << e.what() << endl;
@@ -120,18 +107,18 @@ void process_article(const string& page) {
         "Wikipedia:", "MediaWiki:", "Trợ giúp:", "Bản mẫu:", "Tập tin:", "Cổng thông tin:"
     };
     for (auto& pre : BAD_PREFIX)
-        if (title.rfind(pre,0)==0) return;
+        if (title.rfind(pre, 0) == 0) return;
 
     string visible;
     for (auto& tk : tokenize(raw_text))
-        if (tk.type=="TEXT") visible += tk.value;
+        if (tk.type == "TEXT") visible += tk.value;
 
     visible = clean_text(visible);
 
     ostringstream oss;
     oss << "====================\n";
-    oss << "TITLE: " << title << "\n";
-    oss << "TEXT:\n" << visible << "\n";
+    oss << title << "\n";
+    oss << visible << "\n";
 
     lock_guard<mutex> lk(write_mutex);
     global_out << oss.str();
@@ -147,7 +134,7 @@ void worker_thread() {
 
                 if (work_queue.empty() && done_reading) break;
 
-                article = std::move(work_queue.front());
+                article = move(work_queue.front());
                 work_queue.pop();
             }
 
@@ -155,18 +142,17 @@ void worker_thread() {
                 process_article(article);
             } catch (const exception& e) {
                 lock_guard<mutex> lock(write_mutex);
-                cerr << "[Worker error] " << e.what() << endl;
+                cerr << "Worker error " << e.what() << endl;
             } catch (...) {
                 lock_guard<mutex> lock(write_mutex);
-                cerr << "[Worker error] Unknown exception\n";
+                cerr << "Unknown exception\n";
             }
         }
     } catch (...) {
         lock_guard<mutex> lock(write_mutex);
-        cerr << "[Fatal] Uncaught exception in worker thread\n";
+        cerr << "Uncaught exception in worker thread\n";
     }
 }
-
 
 void process_file(const string& in_file, const string& out_file) {
     ifstream in(in_file);
@@ -196,10 +182,9 @@ void process_file(const string& in_file, const string& out_file) {
         }
 
         if (line.find("<page>") != string::npos) {
-            inside  = true;
+            inside = true;
             article = line + "\n";
-        }
-        else if (line.find("</page>") != string::npos) {
+        } else if (line.find("</page>") != string::npos) {
             article += line + "\n";
             {
                 lock_guard<mutex> lk(queue_mutex);
@@ -207,8 +192,7 @@ void process_file(const string& in_file, const string& out_file) {
             }
             cv.notify_one();
             inside = false;
-        }
-        else if (inside) {
+        } else if (inside) {
             article += line + "\n";
         }
     }
@@ -226,7 +210,7 @@ void process_file(const string& in_file, const string& out_file) {
 
 int main() {
     const string input_file = "C:/Users/nguye/OneDrive/Desktop/viwiki-20250620-pages-articles-multistream/viwiki-20250620-pages-articles-multistream.xml";
-    const string output_file = "C:/Users/nguye/OneDrive/Desktop/viwiki-20250620-pages-articles-multistream/all_text_cpp2.txt";
+    const string output_file = "C:/Users/nguye/OneDrive/Desktop/viwiki-20250620-pages-articles-multistream/all_text_cpp.txt";
     cout << "Starting processing with " << MAX_THREADS << " threads...\n";
     process_file(input_file, output_file);
     cout << "Done.\n";
