@@ -1,0 +1,1 @@
+cd "c:\Users\nguye\OneDrive\Desktop\Git-temp\Personal-Projects\Cpp\Word-frequency\" && g++ -std=c++23 frequency.cpp -o frequency -licuuc -licuin -licudt && "c:\Users\nguye\OneDrive\Desktop\Git-temp\Personal-Projects\Cpp\Word-frequency\"frequency

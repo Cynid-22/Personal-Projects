@@ -208,3 +208,4 @@ Cpp/Word-frequency/uchar.h
 Cpp/Word-frequency/unistr.h
 Cpp/Word-frequency/ustream.h
 Cpp/Word-frequency/utf8.h
+Cpp/Word-frequency/!to_execute freq.cpp prog
