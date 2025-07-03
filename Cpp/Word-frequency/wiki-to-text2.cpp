@@ -1,6 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <regex>
 #include <thread>
 #include <mutex>
 #include <vector>
@@ -19,6 +20,36 @@ condition_variable cv;
 queue<string> work_queue;
 ofstream global_out;
 bool done_reading = false;
+
+struct RegexRule {
+    const regex pattern;
+    const string replace;
+};
+static const vector<RegexRule> CLEAN_RULES = {
+    { regex(R"(<sha1>[^<]*</sha1>)"), "" },
+    { regex(R"(/[\w\-]+/)"), "" },
+    { regex(R"(\\[a-zA-Z]+)"), "" }, // remove LaTeX commands like \frac, \left, \sigma
+    { regex(R"(/([^/\n]*[\t ][^/\n]*)/)"), "$1" },
+    { regex(R"(&[a-zA-Z]+)"), "" },
+    { regex(R"(\[\[(File|Tập_tin):[^\[\]]*\]\])", regex_constants::icase), "" },
+    { regex(R"(https?:\/\/vi\.wikipedia\.org\/wiki\/T%E1%BA%ADp_tin:[^\s\|]+(\|[^\s\|]*)*)", regex_constants::icase), "" },
+    { regex(R"(\[\[[^\[\]]*\|([^\[\]]+)\]\])"), " " },
+    { regex(R"(\[\[([^\[\]]+)\]\])"), " " },
+    { regex(R"(\[https?:\/\/[^\s\]]+\s*([^\]]*)\])"), "$1" },
+    { regex(R"(https?:\/\/\S+|\bwww\.\S+)"), "" },
+    { regex(R"([\[\]\{\}<>=])"), "" },
+    { regex(R"(^\s*[\|\!].*?$)", regex_constants::multiline), "" },
+    { regex(R"(\|\s*colspan\s*=\s*\d+\s*\|)"), "" },
+    { regex(R"(\!\s*rowspan\s*=\s*\d+\s*\|)"), "" },
+    { regex(R"(!\s*&nbsp;)"), "" },
+    { regex(R"(IPAblink|IPAplink|IPA|sub|ref|templatestyles|wikitable|div|noinclude)", regex_constants::icase), "" },
+    { regex(R"(\|\s*[a-zA-Z_ \-]+=\s*[^|\n]+)"), "" },
+    { regex(R"(<!--[\s\S]*?-->)"), "" },
+    { regex(R"('{2,})"), "" },
+    { regex(R"(=+)"), "" },
+    { regex(R"(\b\S+\.(svg|jpg|jpeg|png|gif|pdf|html|css|com|co|us|vn)\b)", regex_constants::icase), "" },
+    { regex(R"(\s+)"), " " }
+};
 
 bool should_skip(const string& page) {
     return page.find("<redirect title=") != string::npos ||
@@ -102,18 +133,21 @@ void process_article(const string& page) {
     auto title = extract_tag(page, "title");
     auto raw_text = extract_tag(page, "text");
     if (title.empty() || raw_text.empty()) return;
-
+    
     static const vector<string> BAD_PREFIX = {
         "Wikipedia:", "MediaWiki:", "Trợ giúp:", "Bản mẫu:", "Tập tin:", "Cổng thông tin:"
     };
     for (auto& pre : BAD_PREFIX)
-        if (title.rfind(pre, 0) == 0) return;
-
+    if (title.rfind(pre, 0) == 0) return;
+    
     string visible;
     for (auto& tk : tokenize(raw_text))
-        if (tk.type == "TEXT") visible += tk.value;
-
+    if (tk.type == "TEXT") visible += tk.value;
+    
     visible = clean_text(visible);
+    
+        for (auto& rule : CLEAN_RULES)
+            visible = regex_replace(visible, rule.pattern, rule.replace);
 
     ostringstream oss;
     oss << "====================\n";
@@ -209,8 +243,8 @@ void process_file(const string& in_file, const string& out_file) {
 }
 
 int main() {
-    const string input_file = "C:/Users/nguye/OneDrive/Desktop/viwiki-20250620-pages-articles-multistream/viwiki-20250620-pages-articles-multistream.xml";
-    const string output_file = "C:/Users/nguye/OneDrive/Desktop/viwiki-20250620-pages-articles-multistream/all_text_cpp.txt";
+    const string input_file = "C:/Users/nguye/OneDrive/Desktop/viwiki-20250620-pages-articles-multistream/sample.xml";
+    const string output_file = "C:/Users/nguye/OneDrive/Desktop/viwiki-20250620-pages-articles-multistream/all_text_cpp2.txt";
     cout << "Starting processing with " << MAX_THREADS << " threads...\n";
     process_file(input_file, output_file);
     cout << "Done.\n";
