@@ -5,6 +5,8 @@
 #include <string>
 #include <vector>
 #include <algorithm>
+#include <thread>
+#include <mutex>
 #include <unicode/unistr.h>
 #include <unicode/uchar.h>
 #include <unicode/utf8.h>
@@ -12,7 +14,8 @@
 using namespace std;
 using namespace icu;
 
-// Simple base characters (for normalization mode)
+static const size_t MAX_THREADS = thread::hardware_concurrency() ? max(int(thread::hardware_concurrency()) - 2, 1) : 1;
+
 static const unordered_set<UChar32> vietnamese_chars_simp = {
     0x0061, 0x0062, 0x0063, 0x0064, 0x0111, 0x0065, 0x00EA, 0x0067, 0x0068,
     0x0069, 0x006B, 0x006C, 0x006D, 0x006E, 0x006F, 0x00F4, 0x01A1, 0x0070,
@@ -20,7 +23,6 @@ static const unordered_set<UChar32> vietnamese_chars_simp = {
     0x0066, 0x006A, 0x0077, 0x007A
 };
 
-// Complex Vietnamese characters (for detailed counting)
 static const unordered_set<UChar32> vietnamese_chars_comp = {
     0x0041, 0x0061, 0x00C0, 0x00E0, 0x00C1, 0x00E1, 0x00C2, 0x00E2,
     0x1EA6, 0x1EA7, 0x1EA4, 0x1EA5, 0x1EAA, 0x1EAB, 0x1EA8, 0x1EA9,
@@ -42,9 +44,9 @@ static const unordered_set<UChar32> vietnamese_chars_comp = {
     0x1EF8, 0x1EF9, 0x1EF6, 0x1EF7, 0x1EF4, 0x1EF5, 0x0110, 0x0111,
     0x0062, 0x0063, 0x0064, 0x0066, 0x0067, 0x0068, 0x006A, 0x006B, 0x006C, 0x006D, 0x006E,
     0x0070, 0x0071, 0x0072, 0x0073, 0x0074, 0x0076, 0x0077, 0x0078, 0x007A
+
 };
 
-// Map of complex → simple characters
 static const unordered_map<UChar32, UChar32> complex_to_simple = {
     {0x00C0, 0x0061}, {0x00E0, 0x0061}, {0x00C1, 0x0061}, {0x00E1, 0x0061},
     {0x00C2, 0x00E2}, {0x00E2, 0x00E2}, {0x1EA6, 0x00E2}, {0x1EA7, 0x00E2},
@@ -66,23 +68,13 @@ static const unordered_map<UChar32, UChar32> complex_to_simple = {
     {0x1EEF, 0x01B0}, {0x1EEC, 0x01B0}, {0x1EED, 0x01B0}, {0x1EF0, 0x01B0},
     {0x1EF1, 0x01B0}, {0x0110, 0x0111}, {0x0041, 0x0061}, {0x0045, 0x0065},
     {0x0049, 0x0069}, {0x004F, 0x006F}, {0x0055, 0x0075}, {0x0059, 0x0079}
+
 };
 
-int main() {
-    const bool use_simple = true;
-
-    unordered_map<UChar32, int> char_count;
-    ifstream file("C:/Users/nguye/OneDrive/Desktop/viwiki-20250620-pages-articles-multistream/all_text.txt", ios::in | ios::binary);
-    if (!file.is_open()) {
-        cerr << "Failed to open input file." << endl;
-        return 1;
-    }
-
-    string line;
-    size_t line_count = 0;
-
-    while (getline(file, line)) {
-        line_count++;
+void process_lines(const vector<string>& lines, size_t start, size_t end,
+                   unordered_map<UChar32, int>& local_count, bool use_simple) {
+    for (size_t idx = start; idx < end; ++idx) {
+        const string& line = lines[idx];
         int32_t length = static_cast<int32_t>(line.length());
         int32_t i = 0;
         UChar32 c;
@@ -94,29 +86,59 @@ int main() {
 
             if (use_simple) {
                 auto it = complex_to_simple.find(c);
-                if (it != complex_to_simple.end()) {
-                    c = it->second;
-                }
-                if (vietnamese_chars_simp.count(c)) {
-                    char_count[c]++;
-                }
+                if (it != complex_to_simple.end()) c = it->second;
+                if (vietnamese_chars_simp.count(c)) local_count[c]++;
             } else {
-                if (vietnamese_chars_comp.count(c)) {
-                    char_count[c]++;
-                }
+                if (vietnamese_chars_comp.count(c)) local_count[c]++;
             }
         }
+    }
+}
 
+int main() {
+    const bool use_simple = true;
+    vector<string> lines;
+    ifstream file("C:/Users/nguye/OneDrive/Desktop/viwiki-20250620-pages-articles-multistream/all_text_cpp.txt", ios::in | ios::binary);
+    if (!file.is_open()) {
+        cerr << "Failed to open input file." << endl;
+        return 1;
+    }
+
+    string line;
+    size_t line_count = 0;
+    while (getline(file, line)) {
+        lines.push_back(move(line));
+        line_count++;
         if (line_count % 1000000 == 0) {
-            cout << "Processed " << line_count << " lines..." << endl;
+            cout << "Read " << line_count << " lines..." << endl;
+        }
+    }
+    file.close();
+
+    cout << "Loaded " << lines.size() << " lines. Processing on " << MAX_THREADS << " threads..." << endl;
+
+    vector<unordered_map<UChar32, int>> thread_counts(MAX_THREADS);
+    vector<thread> threads;
+    size_t chunk_size = (lines.size() + MAX_THREADS - 1) / MAX_THREADS;
+
+    for (size_t t = 0; t < MAX_THREADS; ++t) {
+        size_t start = t * chunk_size;
+        size_t end = min(start + chunk_size, lines.size());
+        threads.emplace_back(process_lines, cref(lines), start, end, ref(thread_counts[t]), use_simple);
+    }
+
+    for (auto& th : threads) th.join();
+
+    unordered_map<UChar32, int> merged_count;
+    for (const auto& local_map : thread_counts) {
+        for (const auto& [c, count] : local_map) {
+            merged_count[c] += count;
         }
     }
 
-    file.close();
-    cout << "Finished reading file. Sorting and writing output..." << endl;
+    cout << "Finished processing. Sorting and writing output..." << endl;
 
-    // Sort output
-    vector<pair<UChar32, int>> sorted_counts(char_count.begin(), char_count.end());
+    vector<pair<UChar32, int>> sorted_counts(merged_count.begin(), merged_count.end());
     sort(sorted_counts.begin(), sorted_counts.end(), [](const auto& a, const auto& b) {
         return a.second > b.second;
     });
