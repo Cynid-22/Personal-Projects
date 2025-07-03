@@ -236,7 +236,7 @@ void process_lines(const vector<string>& lines, size_t start, size_t end,
 int main() {
     const bool use_simple = true;
     vector<string> lines;
-    ifstream file("C:/Users/nguye/OneDrive/Desktop/viwiki-20250620-pages-articles-multistream/truyenkieu.txt", ios::in | ios::binary);
+    ifstream file("C:/Users/nguye/OneDrive/Desktop/viwiki-20250620-pages-articles-multistream/all_text_cpp.txt", ios::in | ios::binary);
     if (!file.is_open()) {
         cerr << "Failed to open input file." << endl;
         return 1;
