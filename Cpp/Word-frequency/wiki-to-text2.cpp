@@ -146,7 +146,7 @@ void process_article(const string& page) {
     
     visible = clean_text(visible);
     
-        for (auto& rule : CLEAN_RULES)
+    for (auto& rule : CLEAN_RULES)
             visible = regex_replace(visible, rule.pattern, rule.replace);
 
     ostringstream oss;
@@ -243,7 +243,7 @@ void process_file(const string& in_file, const string& out_file) {
 }
 
 int main() {
-    const string input_file = "C:/Users/nguye/OneDrive/Desktop/viwiki-20250620-pages-articles-multistream/sample.xml";
+    const string input_file = "C:/Users/nguye/OneDrive/Desktop/viwiki-20250620-pages-articles-multistream/viwiki-20250620-pages-articles-multistream.xml";
     const string output_file = "C:/Users/nguye/OneDrive/Desktop/viwiki-20250620-pages-articles-multistream/all_text_cpp2.txt";
     cout << "Starting processing with " << MAX_THREADS << " threads...\n";
     process_file(input_file, output_file);
