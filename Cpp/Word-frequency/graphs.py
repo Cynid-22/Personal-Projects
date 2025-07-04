@@ -26,7 +26,7 @@ plt.xticks(rotation=90, fontsize=8)
 
 
 for i, (bar, freq) in enumerate(zip(bars, percentages_2)):
-    if i < 20:
+    if i < 10:
         plt.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.1, f'{freq:.2f}%', ha='center', fontsize=7)
 
 plt.tight_layout()
