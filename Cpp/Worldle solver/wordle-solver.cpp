@@ -222,10 +222,20 @@ int main() {
     }
 
     cout << "There are " << allowedWords.size() << " words left: \n";
+    int iter = 0;
     for (const string& word : allowedWords) {
-        cout << word << endl;
+        cout << word << "  ";
+        iter++;
+        if (iter % 5 == 0)
+            cout << "\n";
     }
 
     cout << "\nOut of attempts!\n";
     return 0;
 }
+
+/*
+salet
+mochi
+furzy
+*/
