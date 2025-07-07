@@ -8,7 +8,6 @@
 
 using namespace std;
 
-// Random word picker
 string getRandomWord(const vector<string>& words) {
     if (words.empty()) return "No match";
     random_device rd;
@@ -17,7 +16,6 @@ string getRandomWord(const vector<string>& words) {
     return words[dist(gen)];
 }
 
-// Load word list from file
 void inputFile(vector<string>& allowedWordsList) {
     ifstream file("valid-wordle-words.txt");
     string line;
@@ -28,7 +26,6 @@ void inputFile(vector<string>& allowedWordsList) {
     file.close();
 }
 
-// Word filter based on Wordle feedback
 string CalculateWord(string wordsArr[6], char colorArr[6][5], int currentPlace,
                      vector<string>& allowedWordsList, vector<char>& disallowedLetterList,
                      const vector<string>& usedWords) {
@@ -37,7 +34,6 @@ string CalculateWord(string wordsArr[6], char colorArr[6][5], int currentPlace,
     string currentGuess = wordsArr[currentPlace - 1];
     int correctPlace[5] = {0, 0, 0, 0, 0}; // 2 = green, 1 = yellow, 0 = black
 
-    // Assign color codes
     for (int i = 0; i < 5; ++i) {
         if (colorArr[currentPlace - 1][i] == 'G')
             correctPlace[i] = 2;
@@ -45,7 +41,7 @@ string CalculateWord(string wordsArr[6], char colorArr[6][5], int currentPlace,
             correctPlace[i] = 1;
     }
 
-    // Filter green positions
+    // Filter green
     for (const string& word : allowedWordsList) {
         bool fail = false;
         for (int i = 0; i < 5; ++i) {
@@ -58,7 +54,7 @@ string CalculateWord(string wordsArr[6], char colorArr[6][5], int currentPlace,
             greenFiltered.push_back(word);
     }
 
-    // Filter yellow letters
+    // Filter yellow
     vector<string> yellowFiltered;
     for (const string& word : greenFiltered) {
         bool fail = false;
@@ -90,7 +86,7 @@ string CalculateWord(string wordsArr[6], char colorArr[6][5], int currentPlace,
             yellowFiltered.push_back(word);
     }
 
-    // Filter black letters (but not if they are yellow/green elsewhere)
+    // Filter black (except if they’re also yellow/green)
     vector<string> blackFiltered;
     for (const string& word : yellowFiltered) {
         bool fail = false;
@@ -106,7 +102,7 @@ string CalculateWord(string wordsArr[6], char colorArr[6][5], int currentPlace,
             blackFiltered.push_back(word);
     }
 
-    // Remove used words
+    // Remove words already used
     vector<string> finalCandidates;
     for (const string& word : blackFiltered) {
         if (find(usedWords.begin(), usedWords.end(), word) == usedWords.end())
@@ -114,8 +110,20 @@ string CalculateWord(string wordsArr[6], char colorArr[6][5], int currentPlace,
     }
 
     allowedWordsList = blackFiltered;
-    return finalCandidates.empty() ? "No match" : getRandomWord(finalCandidates);
+
+    if (finalCandidates.empty())
+        return "No match";
+
+    string chosen = getRandomWord(finalCandidates);
+
+    allowedWordsList.erase(
+        remove(allowedWordsList.begin(), allowedWordsList.end(), chosen),
+        allowedWordsList.end()
+    );
+
+    return chosen;
 }
+
 
 int main() {
     string words[6], strTemp;
@@ -203,7 +211,6 @@ int main() {
         if (count >= 6)
             break;
 
-        // Generate a new word that hasn't been used
         string nextWord;
         do {
             nextWord = CalculateWord(words, color, count, allowedWords, disallowedLetters, usedWords);
@@ -211,7 +218,12 @@ int main() {
 
         words[count] = nextWord;
         usedWords.push_back(nextWord);
-        cout << "\nTry this word: " << words[count] << " | available words: " << allowedWords.size() - regenCount << "\n";
+        cout << "\nTry this word: " << words[count] << " | available words: " << allowedWords.size() << "\n";
+    }
+
+    cout << "There are " << allowedWords.size() << " words left: \n";
+    for (const string& word : allowedWords) {
+        cout << word << endl;
     }
 
     cout << "\nOut of attempts!\n";
