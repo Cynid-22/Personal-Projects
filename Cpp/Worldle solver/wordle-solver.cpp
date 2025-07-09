@@ -8,7 +8,7 @@
 
 using namespace std;
 
-string getRandomWord(const vector<string>& words) {
+string getWord(const vector<string>& words) {
     if (words.empty()) return "No match";
     random_device rd;
     mt19937 gen(rd());
@@ -114,7 +114,7 @@ string CalculateWord(string wordsArr[6], char colorArr[6][5], int currentPlace,
     if (finalCandidates.empty())
         return "No match";
 
-    string chosen = getRandomWord(finalCandidates);
+    string chosen = getWord(finalCandidates);
 
     allowedWordsList.erase(
         remove(allowedWordsList.begin(), allowedWordsList.end(), chosen),
