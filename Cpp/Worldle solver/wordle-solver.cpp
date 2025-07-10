@@ -161,15 +161,18 @@ string CalculateWord(string wordsArr[6], char colorArr[6][5], int currentPlace,
 
 
 int main() {
-    string words[6], strTemp;
-    char color[6][5], chTemp;
-    vector<string> allowedWords;
-    vector<char> disallowedLetters;
-    vector<string> usedWords;
-    int count = 0, regenCount = 0;
+    restart:
 
-    inputFile(allowedWords);
+    string words[6] = {}, strTemp;
+    char color[6][5] = {}, chTemp;
+    vector<char> disallowedLetters = {};
+    vector<string> usedWords = {};
+    int count = 0, regenCount = 0;
+    
+    vector<string> allowedWords;
     unordered_map<string, uint64_t> freqMap = loadFrequencies("filtered_words.csv");
+    inputFile(allowedWords);
+
 
     cout << "Do you want to automatically choose the first word? y/n/r(random): ";
     cin >> chTemp;
@@ -256,7 +259,11 @@ int main() {
             }
             if (allGreen) {
                 cout << "Finished! Word guessed in " << count + 1 << " tries.\n";
-                return 0;
+                cout << "\n\nDo you want to continue playing? y/n: ";
+                cin >> chTemp;
+                chTemp = toupper(chTemp);
+                if (chTemp == 'Y')
+                    goto restart;
             }
 
             count++;
@@ -285,6 +292,13 @@ int main() {
     }
 
     cout << "\nOut of attempts!\n";
+
+    cout << "\n\nDo you want to continue playing? y/n: ";
+    cin >> chTemp;
+    chTemp = toupper(chTemp);
+    if (chTemp == 'Y')
+        goto restart;
+    
     return 0;
 }
 
