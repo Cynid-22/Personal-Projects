@@ -5,15 +5,50 @@
 #include <random>
 #include <cctype>
 #include <algorithm>
+#include <unordered_map>
 
 using namespace std;
 
-string getWord(const vector<string>& words) {
+string getWordRandom(const vector<string>& words) {
     if (words.empty()) return "No match";
     random_device rd;
     mt19937 gen(rd());
     uniform_int_distribution<> dist(0, words.size() - 1);
     return words[dist(gen)];
+}
+
+string getWord(const vector<string>& words, const unordered_map<string, uint64_t>& freqMap) {
+    if (words.empty()) return "No match";
+
+    string bestWord = words[0];
+    uint64_t maxFreq = freqMap.count(bestWord) ? freqMap.at(bestWord) : 0;
+
+    for (const string& word : words) {
+        uint64_t freq = freqMap.count(word) ? freqMap.at(word) : 0;
+        if (freq > maxFreq) {
+            maxFreq = freq;
+            bestWord = word;
+        }
+    }
+
+    return bestWord;
+}
+
+unordered_map<string, uint64_t> loadFrequencies(const string& filename) {
+    unordered_map<string, uint64_t> freqMap;
+    ifstream file(filename);
+    string line;
+
+    while (getline(file, line)) {
+        size_t commaPos = line.find(',');
+        if (commaPos != string::npos) {
+            string word = line.substr(0, commaPos);
+            uint64_t freq = stoull(line.substr(commaPos + 1));
+            freqMap[word] = freq;
+        }
+    }
+
+    return freqMap;
 }
 
 void inputFile(vector<string>& allowedWordsList) {
@@ -28,7 +63,7 @@ void inputFile(vector<string>& allowedWordsList) {
 
 string CalculateWord(string wordsArr[6], char colorArr[6][5], int currentPlace,
                      vector<string>& allowedWordsList, vector<char>& disallowedLetterList,
-                     const vector<string>& usedWords) {
+                     const vector<string>& usedWords,  const unordered_map<string, uint64_t>& freqMap) {
     
     vector<string> greenFiltered;
     string currentGuess = wordsArr[currentPlace - 1];
@@ -114,7 +149,7 @@ string CalculateWord(string wordsArr[6], char colorArr[6][5], int currentPlace,
     if (finalCandidates.empty())
         return "No match";
 
-    string chosen = getWord(finalCandidates);
+    string chosen = getWord(finalCandidates, freqMap);
 
     allowedWordsList.erase(
         remove(allowedWordsList.begin(), allowedWordsList.end(), chosen),
@@ -134,6 +169,7 @@ int main() {
     int count = 0, regenCount = 0;
 
     inputFile(allowedWords);
+    unordered_map<string, uint64_t> freqMap = loadFrequencies("filtered_words.csv");
 
     cout << "Do you want to automatically choose the first word? y/n/r(random): ";
     cin >> chTemp;
@@ -143,7 +179,7 @@ int main() {
         cout << "\nThe first word is: salet\n";
     }
     else if (chTemp == 'r' || chTemp == 'R'){
-        words[0] = getWord(allowedWords);
+        words[0] = getWordRandom(allowedWords);
         cout << "\nThe first word is: " << words[0] << endl;
     } else {
         cout << "Input word: ";
@@ -156,9 +192,11 @@ int main() {
     usedWords.push_back(words[0]);
 
     while (count < 6) {
+        showResult:
+
         bool regenerate = false;
 
-        cout << "Enter the result (e.g., G G Y B B or R to regenerate):\n> ";
+        cout << "Enter the result (e.g., G G Y B B or R-regenerate, S-show remaining words):\n> ";
         for (int i = 0; i < 5; i++) {
             cin >> chTemp;
             chTemp = toupper(chTemp);
@@ -167,8 +205,19 @@ int main() {
                 regenCount++;
                 break;
             }
-            if (chTemp != 'G' && chTemp != 'Y' && chTemp != 'B') {
-                cout << "Invalid input. Enter G, Y, B, or R.\n";
+            if (chTemp == 'S') {
+                int iter = 0;
+                for (const string& word : allowedWords) {
+                    cout << word << "  ";
+                    iter++;
+                    if (iter % 6 == 0)
+                        cout << "\n";
+                }
+                cout << "\n";
+                goto showResult;
+            }
+            if (chTemp != 'G' && chTemp != 'Y' && chTemp != 'B' && chTemp != 'S') {
+                cout << "Invalid input. Enter G, Y, B, R or S.\n";
                 --i;
                 continue;
             }
@@ -218,7 +267,7 @@ int main() {
 
         string nextWord;
         do {
-            nextWord = CalculateWord(words, color, count, allowedWords, disallowedLetters, usedWords);
+            nextWord = CalculateWord(words, color, count, allowedWords, disallowedLetters, usedWords, freqMap);
         } while (nextWord == words[count - 1] && allowedWords.size() > 1);
 
         words[count] = nextWord;
