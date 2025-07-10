@@ -133,12 +133,18 @@ int main() {
     vector<string> usedWords;
     int count = 0, regenCount = 0;
 
-    cout << "Do you want to automatically choose the first word? y/n: ";
+    inputFile(allowedWords);
+
+    cout << "Do you want to automatically choose the first word? y/n/r(random): ";
     cin >> chTemp;
 
     if (chTemp == 'y' || chTemp == 'Y') {
         words[0] = "salet"; // kudos to 3Blue1Brown for this word
         cout << "\nThe first word is: salet\n";
+    }
+    else if (chTemp == 'r' || chTemp == 'R'){
+        words[0] = getWord(allowedWords);
+        cout << "\nThe first word is: " << words[0] << endl;
     } else {
         cout << "Input word: ";
         cin >> strTemp;
@@ -147,7 +153,6 @@ int main() {
         words[0] = strTemp;
     }
 
-    inputFile(allowedWords);
     usedWords.push_back(words[0]);
 
     while (count < 6) {
