@@ -13,18 +13,20 @@ void EndTime() {
 }
 
 uint_fast64_t CountPrimes(const uint_fast64_t stop) {
-    if (stop <= 10'000'000) {
-        bitset<10'000'001> is_prime;
+    if (stop <= 16'620'000) {
+        bitset<16'620'001> is_prime;
         is_prime.set();
         is_prime[0] = is_prime[1] = 0;
 
-        for (uint_fast64_t i = 2; i * i <= stop; ++i)
+        for (uint_fast64_t i = 3; i * i <= stop; i+=2)
             if (is_prime[i])
                 for (uint_fast64_t j = i * i; j <= stop; j += i)
                     is_prime[j] = 0;
 
         uint_fast64_t total = 0;
-        for (uint_fast64_t i = 2; i <= stop; ++i)
+        if(stop >= 2)
+            total++;
+        for (uint_fast64_t i = 3; i <= stop; i+=2)
             total += is_prime[i];
             
         return total;
@@ -33,7 +35,7 @@ uint_fast64_t CountPrimes(const uint_fast64_t stop) {
         vector<bool> is_prime(stop + 1, true);
         is_prime[0] = is_prime[1] = false;
 
-        for (uint_fast64_t i = 2; i * i <= stop; ++i)
+        for (uint_fast64_t i = 2; i * i <= stop; i++)
             if (is_prime[i])
                 for (uint_fast64_t j = i * i; j <= stop; j += i)
                     is_prime[j] = false;
@@ -46,7 +48,7 @@ int main() {
     ios::sync_with_stdio(false);
     cin.tie(nullptr);
 
-    const uint_fast64_t stop = 1'000'000, prime_count = CountPrimes(stop);
+    const uint_fast64_t stop = 10'000'000, prime_count = CountPrimes(stop);
 
     cout << "\n*** " << prime_count << " Prime numbers below " << stop << "\n\n";
     EndTime();
