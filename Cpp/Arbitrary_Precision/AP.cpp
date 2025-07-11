@@ -32,6 +32,7 @@ int main()
 }
 
 /*
-Output:
+Command to run: Command to run: 
+g++ -std=c++23 -I/mingw64/include -L/mingw64/lib AP.cpp -o AP -lmpfr -lgmp && AP.exe
 
 */
