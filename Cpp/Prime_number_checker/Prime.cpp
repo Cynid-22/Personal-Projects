@@ -1,4 +1,5 @@
 #include <iostream>
+#include <chrono>
 #include <cstdint>
 #include <cstdlib>
 #include <iomanip>
@@ -9,8 +10,18 @@ using u64  = uint_fast64_t;
 
 using namespace std;
 
+auto start = chrono::high_resolution_clock::now();
+
+void EndTime()
+{
+    auto end = chrono::high_resolution_clock::now();
+    double time_taken = (chrono::duration_cast<chrono::nanoseconds>(end - start).count())*1e-6;
+    cout << "\n\nTime taken : " << time_taken << " ms" << endl;
+}
+
 bool isPrime(cu64 number)
 {
+    start = chrono::high_resolution_clock::now();
     if (number%2 == 0 || number < 2)
         return false;
 
@@ -33,6 +44,16 @@ int main()
         cout << "prime.";
     else
         cout << "NOT prime.";
+
+    
+    EndTime();
     return 0;
 }
 
+/*
+Max number:
+18446744073709551615
+
+Biggest Prime:
+18446744073709551557
+*/

@@ -1,13 +1,25 @@
 #include <iostream>
 #include <gmp.h>
 #include <mpfr.h>
+#include <chrono>
 
 using namespace std;
 
-bool isPrime(mpz_t number) {
-    return (mpz_cmp_ui(number, 2) < 0); // number < 2
+auto start = chrono::high_resolution_clock::now();
 
-    return (!mpz_even_p(number)) ; // !even
+void EndTime()
+{
+    auto end = chrono::high_resolution_clock::now();
+    double time_taken = (chrono::duration_cast<chrono::nanoseconds>(end - start).count())*1e-6;
+    cout << "\n\nTime taken : " << time_taken << " ms" << endl;
+}
+
+bool isPrime(mpz_t number) {
+    start = chrono::high_resolution_clock::now();
+
+    if (mpz_cmp_ui(number, 2) < 0) return false; // number < 2
+
+    if (mpz_even_p(number)) return mpz_cmp_ui(number, 2) == 0; // true if 2, false if even && != 2
 
     mpz_t checkNum, i, rem;
     mpz_inits(checkNum, i, rem, nullptr);
@@ -44,13 +56,22 @@ int main() {
         cout << "NOT prime.";
     cout << endl;
 
+    EndTime();
+
     mpz_clear(number);
     return 0;
 }
 
 
 /*
+
+Test prime:
+18446744073709551557
+
+Test compostite:
+18446744073709551615
+
 Command to run:
-g++ -std=c++23 -I/mingw64/include -L/mingw64/lib Prime.cpp -o Prime -lmpfr -lgmp && Prime.exe
+g++ -std=c++23 -I/mingw64/include -L/mingw64/lib Prime_mpfr.cpp -o Prime_mpfr -lmpfr -lgmp && Prime_mpfr.exe
 
 */
