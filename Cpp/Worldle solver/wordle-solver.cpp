@@ -264,6 +264,8 @@ int main() {
                 chTemp = toupper(chTemp);
                 if (chTemp == 'Y')
                     goto restart;
+                else
+                    return 0;
             }
 
             count++;
