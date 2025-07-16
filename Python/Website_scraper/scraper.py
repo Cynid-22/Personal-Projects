@@ -5,7 +5,7 @@ url_template = "https://thanhnien.vn/api/get-data-tuyen-sinh.htm?keywords={keywo
 output_file = "results.json"
 
 start = 2500
-end = 2503
+end = 7357
 
 with open(output_file, "w", encoding="utf-8") as f:
     f.write("[\n")
