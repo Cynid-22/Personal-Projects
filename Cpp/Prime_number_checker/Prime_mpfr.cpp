@@ -21,15 +21,17 @@ bool isPrime(mpz_t number) {
 
     if (mpz_even_p(number)) return mpz_cmp_ui(number, 2) == 0; // true if 2, false if even && != 2
 
-    mpz_t checkNum, i, rem;
-    mpz_inits(checkNum, i, rem, nullptr);
+    mpz_t checkNum, i, rem, quotient;
+    mpz_inits(checkNum, i, rem, quotient, nullptr);
 
     mpz_sqrt(checkNum, number); // checkNum = sqrt(number)
     
     mpz_set_ui(i, 3); // i = 3
     while (mpz_cmp(i, checkNum) <= 0) { // while i <= checkNum
-        mpz_mod(rem, number, i);
-        if (mpz_cmp_ui(rem, 0) == 0) {
+        mpz_mod(rem, number, i); // mod func -> rem
+        if (mpz_cmp_ui(rem, 0) == 0) { // check rem == 0?
+            mpz_divexact(quotient, number, i); // quotient = number / i
+            gmp_printf("%Zd * %Zd = %Zd\n", i, quotient, number);
             mpz_clears(checkNum, i, rem, nullptr);
             return false;
         }
@@ -49,12 +51,11 @@ int main() {
     cin >> input;
     mpz_set_str(number, input.c_str(), 10); // base 10 input
 
-    cout << input << " is ";
+    cout << "Calculating...\n";
     if (isPrime(number))
-        cout << "prime.";
+        gmp_printf("%Zd is prime.", number);
     else
-        cout << "NOT prime.";
-    cout << endl;
+        gmp_printf("%Zd is NOT prime.", number);
 
     EndTime();
 

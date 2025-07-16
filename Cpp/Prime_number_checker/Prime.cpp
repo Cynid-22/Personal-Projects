@@ -27,8 +27,10 @@ bool isPrime(cu64 number)
 
     cu64 checkNum = sqrtl(number);
     for (u64 i = 3; i < checkNum; ++i)
-        if (number % i == 0)
+        if (number % i == 0) {
+            cout << i << " * " << number/i << " = " << number << "\n";
             return false;
+        }
 
     return true;
 }
@@ -39,11 +41,11 @@ int main()
     cout << "What number do you want to check? ";
     cin >> number;
 
-    cout << number << " is ";
+    cout << "Calculating...\n";
     if (isPrime(number))
-        cout << "prime.";
+        cout << number << " is prime.";
     else
-        cout << "NOT prime.";
+        cout << number << " is NOT prime.";
 
     
     EndTime();
