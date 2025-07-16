@@ -4,8 +4,8 @@ import json
 url_template = "https://thanhnien.vn/api/get-data-tuyen-sinh.htm?keywords={keyword}&pageindex=1&size=10&type=2"
 output_file = "results.json"
 
-start = 2500
-end = 2503
+start = 1000001
+end = 19019653
 
 with open(output_file, "w", encoding="utf-8") as f:
     f.write("[\n")
