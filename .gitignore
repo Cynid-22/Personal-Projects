@@ -2,6 +2,7 @@ creds.py
 tempCodeRunnerFile.cpp
 *.exe
 
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -209,3 +210,6 @@ Cpp/Word-frequency/unistr.h
 Cpp/Word-frequency/ustream.h
 Cpp/Word-frequency/utf8.h
 Cpp/Word-frequency/!to_execute freq.cpp prog
+Python/TOTP-Authenticator/accounts.json
+# Python/TOTP-Authenticator/progress.md
+Python/TOTP-Authenticator/build_exe.md
